@@ -1,6 +1,6 @@
 ---
 name: video-editing
-description: Edit a talking-head video (TikTok, Reels, Shorts, YouTube) in one command - joins the clips, cuts the silences, transcribes. macOS, Windows, Linux. Use when the user says "edit my video", "cut the silences", "remove the dead air", "transcribe my video", "monte ma vidéo", "coupe les blancs", or drops raw clips to edit.
+description: Edit a talking-head video (TikTok, Reels, Shorts, YouTube) in one command - joins the raw clips, cuts the silences and the filler words, keeps only the last take of repeated sentences, transcribes. macOS, Windows, Linux. Use when the user says "edit my video", "cut the silences", "remove the dead air", "transcribe my video", "monte ma vidéo", "coupe les blancs", or drops raw clips to edit.
 ---
 
 # Video editing
@@ -12,9 +12,12 @@ python scripts/edit_video.py clip1.MP4 clip2.MP4 -o edited.mp4
 ```
 
 (`python3` on macOS / Linux if `python` is missing.) It joins the clips in
-the order given, cuts the silences, renders `edited.mp4`, then writes the
+the order given, cuts the silences, cuts the filler words ("um", "uh",
+"euh"...), drops the false starts (when a sentence is said several times,
+only the **last** take is kept), renders `edited.mp4`, then writes the
 transcript next to it: `edited.txt` (text) and `edited.srt` (with timings).
-Default language is English; pass `--lang fr` (or es, de...) for another.
+**Pass `--lang fr` (or es, de...) when the user speaks another language**:
+the filler words and the transcript depend on it.
 
 ## First time — YOU install the tools, not the user
 
@@ -35,7 +38,9 @@ slow, pass `--model small` (less accurate, 6× lighter).
 1. Find the clips (usually the newest files in `~/Downloads`) and run the
    command. It takes a while: about the length of the video, plus the model
    download the first time.
-2. Read what the script prints: duration before / after, number of cuts.
+2. Read what the script prints: duration before / after, and the list of
+   retakes it dropped (each line quotes the repeated words). Mention that
+   list to the user: it is the only thing worth a glance.
 3. Hand back the path of the video and a summary of the transcript. Do not
    re-read, do not verify, do not redo.
 
@@ -50,7 +55,10 @@ slow, pass `--model small` (less accurate, 6× lighter).
 `--protect 12.5:14.0` keeps a deliberate pause (a comedic beat, say): the
 times are those of the joined footage, before cuts.
 
-`--no-transcript` skips whisper if only the edit is wanted.
+`--keep-retakes` keeps every take (a deliberate repetition, a chorus);
+`--keep-fillers` keeps the "um"s; `--min-match 6` asks for longer matches
+before two takes count as a repeat (default 4 words). `--no-transcript`
+skips whisper entirely: silences only.
 
 ## When it fails
 
@@ -63,5 +71,5 @@ times are those of the joined footage, before cuts.
 ## What comes next
 
 This is the foundation. When the user asks for more, add it right here, in
-this script: burned-in subtitles from the `.srt`, cutting the "uh"s, keeping
-only the last take of a repeated sentence, a cover, music.
+this script: burned-in subtitles from the `.srt`, a cover on frame 0, music
+under the voice, a split screen.
