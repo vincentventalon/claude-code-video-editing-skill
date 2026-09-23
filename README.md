@@ -43,7 +43,7 @@ skill tells it how. The transcription model downloads itself the first time.
 |---|---|---|
 | recent Mac (M1 or later), PC with a GPU | nothing, it is the default (`large-v3-turbo`) | 1.6 GB |
 | little disk space, 8 GB of RAM | "use the model large-v3-turbo-q5_0" | 0.57 GB, almost as good |
-| PC without a GPU, or it is too slow | "use the small model" | 0.49 GB, several times faster, catches fewer retakes |
+| PC without a GPU, or it is too slow | "use the small model" | 0.49 GB, several times faster on a CPU, catches a few less retakes |
 
 `medium` is not worth it: as heavy as the default and slower.
 

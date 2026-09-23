@@ -36,7 +36,7 @@ The model downloads itself on the first run, into `~/.cache/whisper-cpp/`:
 |---|---|---|---|
 | recent Mac (M1+) or PC with a GPU | nothing (`large-v3-turbo`) | 1.6 GB | the best; ~2-3 min for 10 min of rushes on a Mac M-series |
 | little disk space or RAM (8 GB) | `--model large-v3-turbo-q5_0` | 0.57 GB | almost as good |
-| PC without a GPU, or it is too slow | `--model small` | 0.49 GB | several times faster, catches fewer retakes |
+| PC without a GPU, or it is too slow | `--model small` | 0.49 GB | several times faster on a CPU, catches a few less retakes |
 
 `medium` is not a good middle ground: as heavy as `large-v3-turbo` and slower.
 
