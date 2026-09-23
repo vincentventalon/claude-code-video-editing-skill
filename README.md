@@ -1,24 +1,26 @@
 # Claude Code video editing skill — automatic rough cut of your raw footage
 
 Let Claude edit your talking-head videos. You hand it the raw clips, it
-gives you back the rough cut: **silences removed, filler words removed,
-only the last take of each sentence kept**, plus **the transcript**. One
-script, a handful of settings, nothing else. Runs on your own computer
-(macOS, Windows, Linux), nothing is uploaded anywhere.
+gives you back the rough cut: **silences removed, false starts removed,
+only the last take of each sentence kept, no word cut in half**, plus
+**the transcript**. One script, a handful of settings, nothing else. Runs
+on your own computer (macOS, Windows, Linux), nothing is uploaded
+anywhere, no account, no API key.
 
 ```
 you:     edit my video, the clips are in Downloads
-claude:  joined footage: 327.5s, 1 clip(s), 29.97 fps
-         silences: 50 segments kept, 327.5s -> 101.2s (-226.3s)
-           cut    1.98 ->    4.08  retake "C'est le nouvel emploi le plus sexy de la tech."
-           cut   13.02 ->   15.36  retake "C'est un métier qui explose avec l'IA et"
+claude:  joined footage: 538.0s, 1 clip(s), 29.97 fps
+         islands of sound: 71 (silences >= 0.22s at -32 dB)
+           cut   24.17 ->   25.09  retake  "La plupart des gens..."
+           cut  250.48 ->  253.03  retake  "Si tu as encore de plus en plus d'utilisateurs sur ton application,"
+           cut  254.11 ->  255.63  retake  "si tu as encore de plus en plus"
            ...
-         fillers + retakes: 7 cuts, 45 segments kept, now 81.7s
-         -> edited.mp4, edited.txt, edited.srt
+         kept 54 segments: 538.0s -> 117.8s (22 retakes and 3 islands without speech dropped)
+         -> edited.mp4, edited.txt, edited.srt, edited.takes.tsv
 ```
 
-A 5 min 27 raw take became a 1 min 22 video, in about a minute of compute
-on a Mac.
+A 9 min raw take became a 1 min 58 video, in about two minutes
+of compute on a Mac.
 
 ## Install
 
@@ -33,32 +35,51 @@ on a Mac.
 2. Open Claude Code and say: **"edit my video, the clips are in Downloads"**.
 
 That's it. If a tool is missing (ffmpeg, whisper), Claude installs it: the
-skill tells it how. The transcription model downloads itself the first time
-(1.5 GB).
+skill tells it how. The transcription model downloads itself the first time.
+
+## Which model for your computer
+
+| your computer | say to Claude | download |
+|---|---|---|
+| recent Mac (M1 or later), PC with a GPU | nothing, it is the default (`large-v3-turbo`) | 1.6 GB |
+| little disk space, 8 GB of RAM | "use the model large-v3-turbo-q5_0" | 0.57 GB, almost as good |
+| PC without a GPU, or it is too slow | "use the small model" | 0.49 GB, several times faster, catches fewer retakes |
+
+`medium` is not worth it: as heavy as the default and slower.
 
 ## What you get
 
-`edited.mp4` (the video without the dead air), `edited.txt` (the text) and
-`edited.srt` (subtitles with timings).
+`edited.mp4` (the rough cut), `edited.txt` (the text), `edited.srt`
+(subtitles with timings) and `edited.takes.tsv` (every piece of your
+footage, kept or cut, with what you said in it).
 
-## What it does
+## How it cuts
 
 1. **Joins your clips**, in the order you give them, without re-encoding.
-2. **Cuts the silences** with ffmpeg, keeping a small margin so no word is clipped.
-3. **Cuts the filler words** ("um", "uh", "euh"...): whisper.cpp transcribes
-   word by word with a prompt that makes it write them down instead of
-   politely erasing them.
-4. **Drops the false starts**: when the same words come back a few seconds
-   later, the first attempt is cut and **the last take is kept**. Shoot the
-   way you talk: say it again until it is right, and move on.
-5. **Renders** an .mp4 ready to post, video and audio aligned to the frame.
-6. **Transcribes** the result, locally. Nothing leaves your machine.
+2. **The sound decides where to cut.** The audio is split into islands of
+   sound, whatever lies between two silences. A cut can only fall in a
+   silence: never in the middle of a word.
+3. **Each island is transcribed on its own** (whisper.cpp, locally).
+   Transcribed in one go, whisper glues two takes into one sentence and
+   quietly writes the repeat only once; island by island, it cannot. An
+   island with no word in it (a breath, a click, a lone "um") goes.
+4. **The last take wins.** When an island is the beginning of what you say
+   right after, it was a false start: it goes, the last take stays. Every
+   island is also re-split on its short inner pauses and each piece is read
+   again on its own: that is where the "and so you, and so now you have"
+   that whisper had swallowed come out. Shoot the way you talk: say it
+   again until it is right, and move on.
+5. **Renders** an .mp4 ready to post, picture and sound in sync to the
+   frame, a 10 ms fade at each join so you never hear a click.
+6. **Claude reads the takes** like an editor: a sentence you abandoned and
+   restarted *in other words* is something only a reader sees. It cuts it
+   with one more command, which re-renders without re-transcribing.
 
 ## What it does not do (yet)
 
-No burned-in subtitles, no cover on frame 0, no music, no split screen. I
-have all of that in my own pipeline; if you want one of them here, open an
-issue or say so under the video, and I will add the ones people ask for.
+No burned-in subtitles, no cover on frame 0, no music, no b-roll. I have
+all of that in my own pipeline; if you want one of them here, open an issue
+or say so under the video, and I will add the ones people ask for.
 
 ## Why it is so small
 
@@ -67,9 +88,9 @@ pipeline is 1,400 lines of instructions and thirty scripts: word-level
 subtitles, title cards, covers, a TikTok and an Instagram render, automatic
 posting. It is far too personal to be useful to anyone else as is.
 
-This repo is the foundation I started from: **get the audio, remove the
-dead air**. It works right away, and it is meant for you to iterate on with
-Claude, the way you shoot.
+This repo is its cutting engine, simplified: **get the audio, remove the
+dead air and the retakes**. It works right away, and it is meant for you to
+iterate on with Claude, the way you shoot.
 
 ## The next steps are yours
 
@@ -82,26 +103,41 @@ grew.
 
 | Setting | Default | When to touch it |
 |---|---|---|
-| `--min-sil` | 0.40 s | it cuts breaths: raise to 0.6. It leaves gaps: lower to 0.3. |
-| `--pad` | 0.05 s | clipped words: raise to 0.10. Too much air at the joins: lower to 0.03. |
-| `--noise` | 32 dB | background noise (street, fan) and nothing gets cut: lower to 25. |
+| `--min-sil` | 0.22 s | the edit feels breathless: 0.35. Pauses left between sentences: 0.18. |
+| `--noise` | 32 dB | background noise (street, fan) and nothing gets cut: 25. |
+| `--model` | large-v3-turbo | see "Which model" above. |
 
-`--lang fr` for French (or any whisper language: it drives the filler words
-and the transcript), `--protect 12.5:14.0` to keep a deliberate pause,
-`--keep-retakes` / `--keep-fillers` to leave them in, `--min-match 6` for
-stricter retake detection (default: 4 words in a row), `--no-transcript`
-to skip whisper, `--model small` on a PC without a GPU.
+`--lang fr` for French (or any whisper language), `--cut 12.5:14.0` to
+remove a window and `--protect 12.5:14.0` to keep one (times of the joined
+footage, as in `edited.takes.tsv`), `--pad 0.08` for more air around each
+island, `--keep-retakes` / `--keep-fillers` to leave them in,
+`--no-transcript` to skip whisper (silences only).
+
+## For the maintainer
+
+`dev/` is not part of the skill. `dev/check_edit.py` measures an edit
+(duration, A/V desync, words cut at the joins, repeats left).
+`dev/sync_from_private.py` carries the cutting improvements of my private
+pipeline over to this repo and tests them on a real rush — read its header.
+It never commits nor pushes.
 
 ---
 
 ## 🇫🇷 En français
 
-Tu dézippes le dossier dans tes skills Claude Code (`~/.claude/skills/video-editing/`
+Tu clones le dossier dans tes skills Claude Code (`~/.claude/skills/video-editing/`
 sur Mac, `C:\Users\<toi>\.claude\skills\video-editing\` sur Windows), tu
 ouvres Claude Code et tu lui dis **« monte ma vidéo, les rushes sont dans
-Téléchargements »**. S'il manque un outil, c'est lui qui l'installe. Pour la
-transcription en français, il passe `--lang fr` tout seul quand tu lui
-parles français ; sinon dis-le-lui.
+Téléchargements »**. S'il manque un outil, c'est lui qui l'installe. Il
+coupe les blancs, les faux départs et les reprises (il garde toujours ta
+**dernière** prise), sans jamais couper un mot en deux, et te rend la
+transcription. Tout tourne sur ta machine, sans compte ni clé d'API.
+
+**Ordinateur modeste ?** Le modèle par défaut pèse 1,6 Go. Sur un PC sans
+carte graphique, dis-lui « prends le modèle small » (0,49 Go, plusieurs
+fois plus rapide, rate un peu plus de reprises) ; si c'est la place ou la
+mémoire qui manque (8 Go), « prends large-v3-turbo-q5_0 » (0,57 Go,
+presque aussi bon). `medium` ne vaut pas le coup : aussi lourd, plus lent.
 
 Vidéo, contexte et la version française de cette page : [deviensdev.fr/claude-code-montage](https://deviensdev.fr/claude-code-montage).
 
